@@ -1,0 +1,111 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState } from 'react';
+import { Search, X, History } from 'lucide-react';
+import { RECENT_SEARCHES_LIST } from '../data';
+
+interface SearchSectionProps {
+  onSearch: (term: string) => void;
+  activeSearchTerm: string;
+}
+
+export default function SearchSection({ onSearch, activeSearchTerm }: SearchSectionProps) {
+  const [inputValue, setInputValue] = useState(activeSearchTerm);
+
+  // Sync state if activeSearchTerm changes externally (e.g. from clicked chip)
+  React.useEffect(() => {
+    setInputValue(activeSearchTerm);
+  }, [activeSearchTerm]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSearch(inputValue.trim());
+  };
+
+  const handleClear = () => {
+    setInputValue('');
+    onSearch('');
+  };
+
+  const handleChipClick = (chipTerm: string) => {
+    setInputValue(chipTerm);
+    onSearch(chipTerm);
+  };
+
+  return (
+    <div className="flex flex-col gap-3.5" id="search-section">
+      <form onSubmit={handleSubmit} className="flex gap-2.5 items-center w-full" id="search-form">
+        {/* Rounded Input Container */}
+        <div 
+          className="relative flex-1 flex items-center bg-[rgba(20,25,45,0.85)] border border-[rgba(255,255,255,0.08)] rounded-[20px] px-4 py-3.5 focus-within:border-purple-500/50 focus-within:ring-2 focus-within:ring-purple-500/10 transition-all duration-250 shadow-md group"
+          id="search-input-wrapper"
+        >
+          <Search className="w-5 h-5 text-[#A0AEC0] group-focus-within:text-purple-400 transition-colors" id="search-input-icon" />
+          
+          <input
+            id="course-search-field"
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Search course..."
+            className="flex-1 bg-transparent border-none outline-none text-white placeholder-[#A0AEC0] ml-3 text-sm font-medium tracking-wide w-full"
+          />
+
+          {inputValue && (
+            <button
+              id="clear-search-btn"
+              type="button"
+              onClick={handleClear}
+              className="p-1 rounded-full text-[#A0AEC0] hover:text-white hover:bg-white/5 active:scale-90 transition-all cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Large Purple Gradient Search Button */}
+        <button
+          id="submit-search-btn"
+          type="submit"
+          className="px-6 py-4 bg-gradient-to-r from-[#6D3BFF] to-[#8F5CFF] hover:from-[#7F4FFF] hover:to-[#9F6FFF] text-white text-sm font-extrabold uppercase tracking-widest rounded-[20px] transition-all duration-200 active:scale-95 shadow-[0_4px_20px_rgba(109,59,255,0.3)] hover:shadow-[0_4px_25px_rgba(109,59,255,0.45)] flex items-center gap-2 cursor-pointer h-full shrink-0"
+        >
+          <Search className="w-4 h-4 stroke-[2.5]" />
+          <span>Search</span>
+        </button>
+      </form>
+
+      {/* Popular/Recent Searches Container */}
+      <div className="flex flex-col gap-2" id="popular-searches-container">
+        <span className="text-xs font-semibold text-[#A0AEC0]/80 tracking-wider">
+          Popular searches
+        </span>
+        
+        {/* Horizontal Chips Wrap */}
+        <div className="flex flex-wrap gap-2" id="popular-searches-chips">
+          {RECENT_SEARCHES_LIST.map((term, i) => {
+            const isSelected = activeSearchTerm.toLowerCase() === term.toLowerCase();
+            return (
+              <button
+                key={term + i}
+                id={`popular-chip-${i}`}
+                type="button"
+                onClick={() => handleChipClick(term)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full border text-xs font-semibold transition-all duration-200 active:scale-95 cursor-pointer ${
+                  isSelected
+                    ? "border-purple-500/50 bg-gradient-to-r from-[#6D3BFF]/20 to-[#8F5CFF]/20 text-purple-200"
+                    : "border-[rgba(255,255,255,0.08)] bg-[rgba(20,25,45,0.5)] text-[#A0AEC0] hover:text-white hover:border-[#A855F7]/30 hover:bg-[#14192D]/80"
+                }`}
+              >
+                <History className={`w-3.5 h-3.5 ${isSelected ? "text-purple-400" : "text-[#A0AEC0]/70"}`} />
+                <span>{term}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
