@@ -1,0 +1,17 @@
+{
+  "short_name": "UD Finder",
+  "name": "UD Course Finder",
+  "description": "Search any course and get random accounts instantly ⚡",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg viewBox='0 0 100 100' fill='none' xmlns='http://www.w3.org/2000/svg'><rect width='100' height='100' rx='20' fill='%23050816'/><path d='M34 56C30 50 32 41 34 38C35.5 42 38.5 44 38.5 47.5C38.5 53.5 35 55 34 56Z' fill='%23F472B6'/><path d='M48 60C45 52 36 34 43 23C40 33 46 43 47.5 49C48.5 42 51 34 54 28C54 36 50 42 54 49C54.5 45 57 41 57.5 37C58 41 57.5 46 56.5 50C56 52 54.5 56 48 60Z' fill='%23F97316'/><path d='M51 60C54 53 52 37 53 8C55 24 64 36 65 46.5C65.5 51.5 64 54.5 56 55.5C54 56 52 58 51 60Z' fill='%23EAB308'/><path d='M35 54.5C35 53.5 35.5 53 36 53H64C64.5 53 65 53.5 65 54.5V70C65 78 58 85 50 85C42 85 35 78 35 70V54.5ZM56 68.5C56 68 55.5 67.5 55 67.5H45C44.5 67.5 44 68 44 68.5V70C44 73 46.5 75.5 50 75.5C53.5 75.5 56 73 56 70V68.5Z' fill='%2322C55E' fill-rule='evenodd' clip-rule='evenodd'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#050816",
+  "theme_color": "#050816",
+  "display": "standalone",
+  "orientation": "portrait"
+}
