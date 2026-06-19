@@ -74,17 +74,6 @@ export default function Header({ theme, onThemeToggle, onNavigateToSettings }: H
         >
           <Settings className="w-5 h-5" />
         </button>
-
-        {/* Floating 3D foldered illustration */}
-        <div className="absolute -bottom-14 -right-2 pointer-events-none select-none w-28 h-28 sm:w-32 sm:h-32 transition-transform duration-300 hover:scale-105" id="header-illustration-container">
-          <img
-            src="/src/assets/images/folder_search_illustration_1781892948695.jpg"
-            alt="3D folder search illustration"
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-contain filter drop-shadow-[0_8px_16px_rgba(109,59,255,0.25)]"
-            id="header-illustration"
-          />
-        </div>
       </div>
     </header>
   );

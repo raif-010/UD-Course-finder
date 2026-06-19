@@ -14,7 +14,7 @@ import FavoritesPanel from './components/FavoritesPanel';
 import SettingsPanel from './components/SettingsPanel';
 import { generateDefaultRecords } from './data';
 import { AccountRecord, SearchHistory, AppSettings } from './types';
-import { Wifi, Battery, Signal, CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function App() {
   // --------- CORE STATE ---------
@@ -268,23 +268,6 @@ export default function App() {
       }`}
       id="app-container"
     >
-      {/* simulated Android Device Notch Header Frame (visible for clean aesthetics on wider displays) */}
-      <div 
-        className={`w-full max-w-md mx-auto px-5 py-2.5 flex items-center justify-between border-b text-xs ${
-          isDarkTheme 
-            ? 'bg-[#050816] text-[#A0AEC0] border-[rgba(255,255,255,0.04)]' 
-            : 'bg-[#F4F5F9] text-[#64748B] border-gray-200'
-        }`}
-        id="simulated-notch"
-      >
-        <span className="font-extrabold" id="notch-time">9:41</span>
-        <div className="flex items-center gap-1" id="notch-icons">
-          <Signal className="w-3.5 h-3.5" />
-          <Wifi className="w-3.5 h-3.5" />
-          <Battery className="w-4 h-4 fill-current rotate-90 scale-90" />
-        </div>
-      </div>
-
       {/* Main core content viewport */}
       <main className="w-full max-w-md mx-auto px-4 pt-1" id="android-viewport">
         
