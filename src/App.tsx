@@ -24,6 +24,7 @@ export default function App() {
   const [activeSearchTerm, setActiveSearchTerm] = useState<string>("");
   const [activeCustomRecordId, setActiveCustomRecordId] = useState<string | null>(null);
   const [exactMatchOnly, setExactMatchOnly] = useState<boolean>(false);
+  const [exclusiveMatchOnly, setExclusiveMatchOnly] = useState<boolean>(false);
   
   // Selected single random record for home card
   const [randomRecord, setRandomRecord] = useState<AccountRecord | null>(null);
@@ -134,9 +135,17 @@ export default function App() {
         return rec.courses.length === 1;
       }
 
+      // If exclusiveMatchOnly is checked, make sure the ID contains ONLY searched courses
+      if (exclusiveMatchOnly) {
+        const hasOnlySearchedCourses = normalizedCourses.every(normCourse => {
+          return searchWords.some(word => normCourse.includes(word));
+        });
+        if (!hasOnlySearchedCourses) return false;
+      }
+
       return true;
     });
-  }, [activeSearchTerm, records, exactMatchOnly]);
+  }, [activeSearchTerm, records, exactMatchOnly, exclusiveMatchOnly]);
 
   // Handle auto copy trigger on query change
   useEffect(() => {
@@ -512,8 +521,17 @@ export default function App() {
                 onToggleExactMatchOnly={() => {
                   const newVal = !exactMatchOnly;
                   setExactMatchOnly(newVal);
+                  if (newVal) setExclusiveMatchOnly(false);
                   playBeepSound(newVal ? 550 : 380, newVal ? 820 : 540, 0.12);
-                  showNotification(newVal ? "✨ Exact match enabled: Finding IDs containing ONLY the searching courses." : "Exact match disabled.");
+                  showNotification(newVal ? "✨ Exact match enabled: Finding IDs containing ONLY 1 course in total." : "Exact match disabled.");
+                }}
+                exclusiveMatch={exclusiveMatchOnly}
+                onToggleExclusiveMatch={() => {
+                  const newVal = !exclusiveMatchOnly;
+                  setExclusiveMatchOnly(newVal);
+                  if (newVal) setExactMatchOnly(false);
+                  playBeepSound(newVal ? 580 : 380, newVal ? 850 : 540, 0.12);
+                  showNotification(newVal ? "📦 Bundle mode enabled: Hiding accounts with extra courses." : "Bundle mode disabled.");
                 }}
               />
 

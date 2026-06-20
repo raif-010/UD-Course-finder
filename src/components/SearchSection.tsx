@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Search, X, History } from 'lucide-react';
+import { Search, X, History, Layers } from 'lucide-react';
 import { RECENT_SEARCHES_LIST } from '../data';
 
 interface SearchSectionProps {
@@ -12,13 +12,17 @@ interface SearchSectionProps {
   activeSearchTerm: string;
   exactMatchOnly?: boolean;
   onToggleExactMatchOnly?: () => void;
+  exclusiveMatch?: boolean;
+  onToggleExclusiveMatch?: () => void;
 }
 
 export default function SearchSection({ 
   onSearch, 
   activeSearchTerm, 
   exactMatchOnly = false,
-  onToggleExactMatchOnly
+  onToggleExactMatchOnly,
+  exclusiveMatch = false,
+  onToggleExclusiveMatch
 }: SearchSectionProps) {
   const [inputValue, setInputValue] = useState(activeSearchTerm);
 
@@ -84,14 +88,34 @@ export default function SearchSection({
                 ? "border-amber-500 bg-amber-500/15 text-amber-300 shadow-[0_4px_15px_rgba(245,158,11,0.25)]"
                 : "border-[rgba(255,255,255,0.08)] bg-[rgba(20,25,45,0.85)] text-[#A0AEC0] hover:text-white hover:border-amber-500/30"
             }`}
-            title="Toggle Strict Filter: Match accounts containing ONLY this course"
+            title="Toggle Strict Filter: Match accounts containing ONLY this 1 course"
           >
-            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black transition-all ${
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
               exactMatchOnly ? "bg-amber-400 text-slate-950 scale-105" : "bg-white/10 text-white"
             }`}>
               1
             </div>
             <span className="text-[10px] font-extrabold tracking-widest uppercase hidden xs:inline">Strict</span>
+          </button>
+        )}
+
+        {/* Strict Bundle Toggle Button */}
+        {onToggleExclusiveMatch && (
+          <button
+            id="toggle-strict-bundle-btn"
+            type="button"
+            onClick={onToggleExclusiveMatch}
+            className={`p-3 rounded-[20px] transition-all duration-200 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer h-full shrink-0 border ${
+              exclusiveMatch
+                ? "border-purple-500 bg-purple-500/15 text-purple-300 shadow-[0_4px_15px_rgba(168,85,247,0.25)]"
+                : "border-[rgba(255,255,255,0.08)] bg-[rgba(20,25,45,0.85)] text-[#A0AEC0] hover:text-white hover:border-purple-500/30"
+            }`}
+            title="Toggle Bundle Strict: Only show IDs containing exclusively searched courses (no extra courses allowed)"
+          >
+            <Layers className={`w-4 h-4 transition-all ${
+              exclusiveMatch ? "text-purple-400 scale-110" : "text-[#A0AEC0]"
+            }`} />
+            <span className="text-[10px] font-extrabold tracking-widest uppercase hidden xs:inline">Bundle</span>
           </button>
         )}
 
@@ -107,11 +131,17 @@ export default function SearchSection({
       </form>
 
       {/* Interactive Quick Help Badge */}
-      <div className="bg-[rgba(20,25,45,0.45)] border border-dashed border-white/[0.04] rounded-xl px-3 py-2 text-[11px] text-[#A0AEC0] flex items-start gap-1.5 leading-relaxed" id="search-feature-tips">
-        <span className="text-[#A855F7] font-bold">💡 Tip:</span>
-        <span className="flex-1">
-          Toggle <strong className="text-amber-400">Strict mode</strong> to only show accounts containing <em className="underline not-italic">only</em> the searched course(s). If courses have punctuation (like <span className="text-purple-300">Bangla-English</span>), you can search with simple space separated words like <span className="font-mono bg-white/5 px-1 py-0.5 rounded text-purple-300">"Bangla English"</span>.
-        </span>
+      <div className="bg-[rgba(20,25,45,0.45)] border border-dashed border-white/[0.04] rounded-xl px-3 py-2.5 text-[11px] text-[#A0AEC0] flex flex-col gap-2 leading-relaxed" id="search-feature-tips">
+        <div className="flex items-start gap-1.5">
+          <span className="text-[#A855F7] font-bold shrink-0">💡 Tip:</span>
+          <span className="flex-1">
+            If courses have punctuation (like <span className="text-purple-300">Bangla-English</span>), search with space-separated words like <span className="font-mono bg-white/5 px-1.5 py-0.5 rounded text-purple-300">"Bangla English"</span>.
+          </span>
+        </div>
+        <div className="border-t border-white/[0.04] pt-2 flex flex-col gap-1 text-[10.5px]">
+          <div>• <strong className="text-amber-400">Strict mode (1)</strong>: Only shows IDs consisting of <em className="underline not-italic">exactly one</em> course matching your search.</div>
+          <div>• <strong className="text-purple-400">Bundle mode</strong>: Hides IDs containing <em className="underline not-italic">any extra/additional</em> courses outside your searched ones.</div>
+        </div>
       </div>
 
       {/* Popular/Recent Searches Container */}
