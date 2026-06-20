@@ -8,6 +8,7 @@ export interface AccountRecord {
   password?: string;
   courses: string[];
   isFavorite?: boolean;
+  labels?: string[];
 }
 
 export interface SearchHistory {

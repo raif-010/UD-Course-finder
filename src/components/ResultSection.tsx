@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { RefreshCw, Copy, Check, Users, ChevronRight, Trash2, Shield, Heart, HelpCircle } from 'lucide-react';
+import { RefreshCw, Copy, Check, Users, ChevronRight, Trash2, Shield, Heart, HelpCircle, Plus } from 'lucide-react';
 import { AccountRecord } from '../types';
 
 interface ResultSectionProps {
@@ -16,6 +16,9 @@ interface ResultSectionProps {
   onToggleFavorite: (id: string) => void;
   soundEnabled: boolean;
   onShowNotification: (message: string) => void;
+  activeCustomId?: string | null;
+  onAddCourseToActive?: (courseName: string) => void;
+  exactMatchOnly?: boolean;
 }
 
 export default function ResultSection({
@@ -26,7 +29,10 @@ export default function ResultSection({
   favorites,
   onToggleFavorite,
   soundEnabled,
-  onShowNotification
+  onShowNotification,
+  activeCustomId,
+  onAddCourseToActive,
+  exactMatchOnly = false
 }: ResultSectionProps) {
   // Visible list count for compact secondary records
   const [visibleCount, setVisibleCount] = useState(3);
@@ -88,9 +94,16 @@ export default function ResultSection({
           {/* Random result header */}
           <div className="flex items-center justify-between z-10" id="random-card-header">
             {/* Left badge */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-[#A855F7] text-xs font-bold uppercase tracking-wider" id="random-badge">
-              <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
-              <span>🎲 Random Result</span>
+            <div className="flex items-center gap-2 flex-wrap" id="random-badges-row">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-[#A855F7] text-xs font-bold uppercase tracking-wider" id="random-badge">
+                <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
+                <span>🎲 Random Result</span>
+              </div>
+              {exactMatchOnly && (
+                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[9px] font-black uppercase tracking-wider" id="strict-match-badge">
+                  <span>✨ 1 Course Only</span>
+                </div>
+              )}
             </div>
 
             {/* Right button */}
@@ -177,9 +190,21 @@ export default function ResultSection({
               <div className="text-xs font-semibold text-[#A0AEC0] uppercase tracking-wider">Courses</div>
               <ul className="list-none pl-1 flex flex-col gap-1.5" id="courses-ul">
                 {randomRecord.courses.map((course, idx) => (
-                  <li key={idx} className="text-xs sm:text-sm font-medium text-white flex items-start gap-2 leading-relaxed" id={`bullet-${idx}`}>
-                    <span className="text-[#A855F7] text-md mt-0.5">•</span>
-                    <span>{course}</span>
+                  <li key={idx} className="text-xs sm:text-sm font-medium text-white flex items-center justify-between gap-3 leading-relaxed" id={`bullet-${idx}`}>
+                    <span className="flex items-start gap-2">
+                      <span className="text-[#A855F7] text-md mt-0.5">•</span>
+                      <span>{course}</span>
+                    </span>
+                    {activeCustomId && randomRecord.id !== activeCustomId && onAddCourseToActive && (
+                      <button
+                        onClick={() => onAddCourseToActive(course)}
+                        className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/15 rounded-md text-[10px] font-bold text-emerald-300 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+                        title="Add this course to your active bundle"
+                      >
+                        <Plus className="w-3 h-3 text-emerald-400" />
+                        <span>Add</span>
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -189,8 +214,12 @@ export default function ResultSection({
       ) : (
         <div className="rounded-[20px] border border-dashed border-[rgba(255,255,255,0.12)] p-8 text-center text-[#A0AEC0] flex flex-col items-center justify-center gap-3 bg-white/[0.01]" id="no-filtered-results">
           <HelpCircle className="w-10 h-10 text-[#A0AEC0]/40" />
-          <p className="text-sm font-medium">No active search matches yet.</p>
-          <p className="text-xs text-[#A0AEC0]/60 max-w-[240px]">Type in the search field above or upload a database sheet to begin finding accounts!</p>
+          <p className="text-sm font-medium">No active search matches found.</p>
+          <p className="text-xs text-[#A0AEC0]/60 max-w-[240px]">
+            {exactMatchOnly 
+              ? "We couldn't find any account containing ONLY the exact course name searched. Try switching off 'Exact' search match mode." 
+              : "Type in the search field above or upload a database sheet to begin finding accounts!"}
+          </p>
         </div>
       )}
 
@@ -288,9 +317,21 @@ export default function ResultSection({
                   <div className="text-[10px] font-bold text-[#A0AEC0] uppercase tracking-wider">Courses</div>
                   <ul className="list-none pl-1 flex flex-col gap-1.5" id={`secondary-courses-ul-${record.id}`}>
                     {record.courses.map((course, idx) => (
-                      <li key={idx} className="text-xs font-medium text-[#CFD8E3] flex items-start gap-2 leading-relaxed" id={`secondary-bullet-${record.id}-${idx}`}>
-                        <span className="text-[#A855F7] mt-0.5">•</span>
-                        <span>{course}</span>
+                      <li key={idx} className="text-xs font-medium text-[#CFD8E3] flex items-center justify-between gap-3 leading-relaxed" id={`secondary-bullet-${record.id}-${idx}`}>
+                        <span className="flex items-start gap-2">
+                          <span className="text-[#A855F7] mt-0.5">•</span>
+                          <span>{course}</span>
+                        </span>
+                        {activeCustomId && record.id !== activeCustomId && onAddCourseToActive && (
+                          <button
+                            onClick={() => onAddCourseToActive(course)}
+                            className="px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/15 rounded-md text-[9px] font-bold text-emerald-300 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+                            title="Add this course to your active bundle"
+                          >
+                            <Plus className="w-3 h-3 text-emerald-400" />
+                            <span>Add</span>
+                          </button>
+                        )}
                       </li>
                     ))}
                   </ul>

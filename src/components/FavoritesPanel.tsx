@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Heart, Key, Copy, Check, Trash2, Shield, HeartOff, Users } from 'lucide-react';
+import { Heart, Key, Copy, Check, Trash2, Shield, HeartOff, Users, Tag, Plus, X } from 'lucide-react';
 import { AccountRecord } from '../types';
 
 interface FavoritesPanelProps {
@@ -13,6 +13,7 @@ interface FavoritesPanelProps {
   onClearAll: () => void;
   soundEnabled: boolean;
   onShowNotification: (message: string) => void;
+  onUpdateLabels: (id: string, labels: string[]) => void;
 }
 
 export default function FavoritesPanel({
@@ -20,9 +21,41 @@ export default function FavoritesPanel({
   onRemoveFavorite,
   onClearAll,
   soundEnabled,
-  onShowNotification
+  onShowNotification,
+  onUpdateLabels
 }: FavoritesPanelProps) {
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: 'id' | 'password' | null }>({});
+  const [labelInputs, setLabelInputs] = useState<{ [id: string]: string }>({});
+
+  const handleAddLabel = (recordId: string) => {
+    const rawVal = labelInputs[recordId] || '';
+    const labelVal = rawVal.trim();
+    if (!labelVal) return;
+
+    const record = favorites.find(r => r.id === recordId);
+    if (!record) return;
+
+    const currentLabels = record.labels || [];
+    if (currentLabels.includes(labelVal)) {
+      onShowNotification(`⚠ Label "${labelVal}" already exists on this ID`);
+      return;
+    }
+
+    const nextLabels = [...currentLabels, labelVal];
+    onUpdateLabels(recordId, nextLabels);
+    setLabelInputs(prev => ({ ...prev, [recordId]: '' }));
+    onShowNotification(`🏷️ Added label: ${labelVal}`);
+  };
+
+  const handleRemoveLabel = (recordId: string, labelToRemove: string) => {
+    const record = favorites.find(r => r.id === recordId);
+    if (!record) return;
+
+    const currentLabels = record.labels || [];
+    const nextLabels = currentLabels.filter(l => l !== labelToRemove);
+    onUpdateLabels(recordId, nextLabels);
+    onShowNotification(`Removed label: ${labelToRemove}`);
+  };
 
   const playCopySound = () => {
     if (!soundEnabled) return;
@@ -154,6 +187,77 @@ export default function FavoritesPanel({
                     ))}
                   </ul>
                 </div>
+              </div>
+
+              {/* Dynamic Multiple Labels/Tags Section */}
+              <div className="flex flex-col gap-2.5 pt-3 border-t border-white/[0.04] text-xs" id={`favorite-labels-section-${record.id}`}>
+                <div className="flex items-center justify-between" id={`favorite-labels-header-${record.id}`}>
+                  <span className="text-[10px] font-extrabold text-[#A0AEC0] uppercase tracking-wider flex items-center gap-1">
+                    <Tag className="w-3 h-3 text-purple-400" />
+                    <span>Labels</span>
+                  </span>
+                  {record.labels && record.labels.length > 0 && (
+                    <span className="text-[9px] font-bold text-purple-300 italic">
+                      {record.labels.length} {record.labels.length === 1 ? 'label' : 'labels'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Displaying Labels as sleek pill badges */}
+                <div className="flex flex-wrap gap-1.5" id={`favorite-labels-pills-${record.id}`}>
+                  {record.labels && record.labels.length > 0 ? (
+                    record.labels.map((label, labelIdx) => (
+                      <div
+                        key={labelIdx}
+                        id={`favorite-label-pill-${record.id}-${label}`}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/25 text-[#D8B4FE] text-[10px] font-black tracking-normal transition-all duration-150 hover:bg-purple-500/15"
+                      >
+                        <span>{label}</span>
+                        <button
+                          type="button"
+                          id={`favorite-label-remove-btn-${record.id}-${label}`}
+                          onClick={() => handleRemoveLabel(record.id, label)}
+                          className="hover:bg-purple-500/30 text-purple-300 hover:text-white rounded-full p-0.5 transition-colors cursor-pointer shrink-0"
+                          title={`Delete label "${label}"`}
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-[10px] text-[#A0AEC0]/45 italic">No custom labels added yet</span>
+                  )}
+                </div>
+
+                {/* Add dynamic labels input form */}
+                <form
+                  id={`favorite-add-label-form-${record.id}`}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleAddLabel(record.id);
+                  }}
+                  className="flex gap-2 items-center mt-0.5"
+                >
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      id={`favorite-label-input-${record.id}`}
+                      value={labelInputs[record.id] || ''}
+                      onChange={(e) => setLabelInputs(prev => ({ ...prev, [record.id]: e.target.value }))}
+                      placeholder="Add label (e.g. Premium, Exam)"
+                      maxLength={24}
+                      className="w-full bg-white/[0.02] hover:bg-white/[0.04] focus:bg-white/[0.04] border border-white/[0.06] focus:border-purple-500/30 rounded-xl px-3 py-1.5 text-[11px] text-white placeholder-[#A0AEC0]/40 outline-none transition-all duration-200"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    id={`favorite-label-submit-${record.id}`}
+                    className="p-1.5 bg-purple-500/20 hover:bg-purple-500/35 border border-purple-500/30 text-purple-200 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
+                    title="Add Label Tag"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </form>
               </div>
 
             </div>

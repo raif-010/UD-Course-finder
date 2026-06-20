@@ -10,9 +10,16 @@ import { RECENT_SEARCHES_LIST } from '../data';
 interface SearchSectionProps {
   onSearch: (term: string) => void;
   activeSearchTerm: string;
+  exactMatchOnly?: boolean;
+  onToggleExactMatchOnly?: () => void;
 }
 
-export default function SearchSection({ onSearch, activeSearchTerm }: SearchSectionProps) {
+export default function SearchSection({ 
+  onSearch, 
+  activeSearchTerm, 
+  exactMatchOnly = false,
+  onToggleExactMatchOnly
+}: SearchSectionProps) {
   const [inputValue, setInputValue] = useState(activeSearchTerm);
 
   // Sync state if activeSearchTerm changes externally (e.g. from clicked chip)
@@ -66,6 +73,28 @@ export default function SearchSection({ onSearch, activeSearchTerm }: SearchSect
           )}
         </div>
 
+        {/* Strict Single Course "1" Toggle Button */}
+        {onToggleExactMatchOnly && (
+          <button
+            id="toggle-strict-single-course-btn"
+            type="button"
+            onClick={onToggleExactMatchOnly}
+            className={`p-3 rounded-[20px] transition-all duration-200 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer h-full shrink-0 border ${
+              exactMatchOnly
+                ? "border-amber-500 bg-amber-500/15 text-amber-300 shadow-[0_4px_15px_rgba(245,158,11,0.25)]"
+                : "border-[rgba(255,255,255,0.08)] bg-[rgba(20,25,45,0.85)] text-[#A0AEC0] hover:text-white hover:border-amber-500/30"
+            }`}
+            title="Toggle Strict Filter: Match accounts containing ONLY this course"
+          >
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black transition-all ${
+              exactMatchOnly ? "bg-amber-400 text-slate-950 scale-105" : "bg-white/10 text-white"
+            }`}>
+              1
+            </div>
+            <span className="text-[10px] font-extrabold tracking-widest uppercase hidden xs:inline">Strict</span>
+          </button>
+        )}
+
         {/* Large Purple Gradient Search Button */}
         <button
           id="submit-search-btn"
@@ -76,6 +105,14 @@ export default function SearchSection({ onSearch, activeSearchTerm }: SearchSect
           <span>Search</span>
         </button>
       </form>
+
+      {/* Interactive Quick Help Badge */}
+      <div className="bg-[rgba(20,25,45,0.45)] border border-dashed border-white/[0.04] rounded-xl px-3 py-2 text-[11px] text-[#A0AEC0] flex items-start gap-1.5 leading-relaxed" id="search-feature-tips">
+        <span className="text-[#A855F7] font-bold">💡 Tip:</span>
+        <span className="flex-1">
+          Toggle <strong className="text-amber-400">Strict mode</strong> to only show accounts containing <em className="underline not-italic">only</em> the searched course(s). If courses have punctuation (like <span className="text-purple-300">Bangla-English</span>), you can search with simple space separated words like <span className="font-mono bg-white/5 px-1 py-0.5 rounded text-purple-300">"Bangla English"</span>.
+        </span>
+      </div>
 
       {/* Popular/Recent Searches Container */}
       <div className="flex flex-col gap-2" id="popular-searches-container">
