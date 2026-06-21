@@ -13,11 +13,13 @@ interface FileCardProps {
   rowCount: number;
   onFileLoaded: (records: AccountRecord[], fileName: string) => void;
   onShowNotification: (message: string, isError?: boolean) => void;
+  theme?: 'dark' | 'light';
 }
 
-export default function FileCard({ fileName, rowCount, onFileLoaded, onShowNotification }: FileCardProps) {
+export default function FileCard({ fileName, rowCount, onFileLoaded, onShowNotification, theme = 'dark' }: FileCardProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const isDark = theme === 'dark';
 
   const handleButtonClick = () => {
     fileInputRef.current?.click();
@@ -161,20 +163,26 @@ export default function FileCard({ fileName, rowCount, onFileLoaded, onShowNotif
 
   return (
     <div 
-      className="rounded-[20px] p-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(20,25,45,0.85)] backdrop-blur-xl shadow-lg relative overflow-hidden flex flex-col gap-3 group transition-transform duration-300 hover:scale-[1.01]" 
+      className={`rounded-[20px] p-[18px] border transition-all duration-300 relative overflow-hidden flex flex-col gap-3 group hover:scale-[1.01] ${
+        isDark 
+          ? "border-[rgba(255,255,255,0.08)] bg-[rgba(20,25,45,0.85)] text-white backdrop-blur-xl shadow-lg" 
+          : "border-slate-200 bg-white text-slate-800 shadow-sm"
+      }`} 
       id="file-status-card"
     >
       <div className="flex items-center justify-between" id="file-card-top">
         <div className="flex items-center gap-3.5" id="file-card-info">
           {/* Circular Glass Folder Icon Badge */}
-          <div className="w-[45px] h-[45px] rounded-xl bg-purple-600/15 flex items-center justify-center border border-purple-500/20 text-[#A855F7] shadow-inner" id="file-icon-badge">
+          <div className={`w-[45px] h-[45px] rounded-xl flex items-center justify-center border text-[#A855F7] ${
+            isDark ? "bg-purple-600/15 border-purple-500/20 shadow-inner" : "bg-purple-50 border-purple-100 shadow-sm"
+          }`} id="file-icon-badge">
             <FileSpreadsheet className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs font-semibold text-[#A0AEC0] tracking-wider uppercase" id="selected-file-label">
+            <div className={`text-xs font-semibold tracking-wider uppercase ${isDark ? "text-[#A0AEC0]" : "text-slate-400"}`} id="selected-file-label">
               Selected File
             </div>
-            <div className="text-lg font-bold text-white tracking-tight mt-0.5" id="selected-file-name">
+            <div className={`text-lg font-bold tracking-tight mt-0.5 ${isDark ? "text-white" : "text-slate-850"}`} id="selected-file-name">
               {fileName}
             </div>
           </div>
@@ -185,7 +193,11 @@ export default function FileCard({ fileName, rowCount, onFileLoaded, onShowNotif
           id="change-file-btn"
           disabled={isProcessing}
           onClick={handleButtonClick}
-          className="px-4 py-2 border border-purple-500/30 rounded-xl text-xs font-bold text-purple-300 hover:text-white hover:bg-purple-600/20 hover:border-purple-500/50 active:scale-95 disabled:opacity-50 transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-[0_4px_12px_rgba(109,59,255,0.1)]"
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 cursor-pointer border ${
+            isDark 
+              ? "border-purple-500/30 text-purple-300 hover:text-white hover:bg-purple-600/20 hover:border-purple-500/50 shadow-[0_4px_12px_rgba(109,59,255,0.1)]" 
+              : "border-purple-200 bg-purple-50/50 text-purple-650 hover:bg-purple-50 hover:border-purple-400 hover:text-purple-800 shadow-xs"
+          } active:scale-95 disabled:opacity-50`}
         >
           {isProcessing ? (
             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -206,17 +218,17 @@ export default function FileCard({ fileName, rowCount, onFileLoaded, onShowNotif
         id="hidden-file-picker"
       />
 
-      <div className="h-[px] w-full bg-[rgba(255,255,255,0.06)]" />
+      <div className={`h-[1px] w-full ${isDark ? "bg-[rgba(255,255,255,0.06)]" : "bg-slate-100"}`} />
 
       {/* Bottom status labels */}
-      <div className="flex items-center justify-between text-xs text-[#A0AEC0] font-medium" id="file-card-bottom-status">
-        <div className="flex items-center gap-1.5 text-emerald-400 group-hover:text-emerald-300 transition-colors" id="success-status-indicator">
+      <div className={`flex items-center justify-between text-xs font-medium ${isDark ? "text-[#A0AEC0]" : "text-slate-500"}`} id="file-card-bottom-status">
+        <div className={`flex items-center gap-1.5 transition-colors ${isDark ? "text-emerald-400 group-hover:text-emerald-300" : "text-emerald-600 group-hover:text-emerald-700"}`} id="success-status-indicator">
           <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
           <span>File loaded successfully</span>
         </div>
         <div className="flex items-center gap-1.5" id="row-count-status">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#A855F7]"></span>
-          <span>{rowCount.toLocaleString()} rows</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${isDark ? "bg-[#A855F7]" : "bg-purple-600"}`}></span>
+          <span className={isDark ? "text-[#A0AEC0]" : "text-slate-650"}>{rowCount.toLocaleString()} rows</span>
         </div>
       </div>
     </div>

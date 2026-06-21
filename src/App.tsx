@@ -471,6 +471,47 @@ export default function App() {
     updateRecordsStateAndCache(updatedRecords);
   };
 
+  const handleImportFavorites = (importedRecords: AccountRecord[]) => {
+    if (!Array.isArray(importedRecords) || importedRecords.length === 0) return;
+
+    const validImported = importedRecords.filter(rec => rec && typeof rec.id === 'string' && rec.id.trim() !== '');
+    if (validImported.length === 0) {
+      showNotification("⚠ No valid records in backup file", true);
+      return;
+    }
+
+    setRecords(prevRecords => {
+      const merged = [...prevRecords];
+      validImported.forEach(impRec => {
+        const existingIdx = merged.findIndex(r => r.id === impRec.id);
+        if (existingIdx !== -1) {
+          merged[existingIdx] = {
+            ...merged[existingIdx],
+            ...impRec
+          };
+        } else {
+          merged.push(impRec);
+        }
+      });
+      
+      try {
+        localStorage.setItem("uploaded_records", JSON.stringify(merged));
+      } catch (e) {
+        console.error("Failed to save imported records", e);
+      }
+      return merged;
+    });
+
+    setFavorites(prevFavorites => {
+      const importedIds = validImported.map(rec => rec.id);
+      const combined = Array.from(new Set([...prevFavorites, ...importedIds]));
+      return combined;
+    });
+
+    playBeepSound(650, 950, 0.25);
+    showNotification(`📥 Imported ${validImported.length} favorite IDs!`);
+  };
+
   // Filter Favorite Records list
   const favoritedRecordsList = useMemo(() => {
     return records.filter(item => favorites.includes(item.id));
@@ -511,6 +552,7 @@ export default function App() {
                 rowCount={records.length} 
                 onFileLoaded={handleFileLoaded}
                 onShowNotification={(msg, isErr) => showNotification(msg, isErr)}
+                theme={settings.theme}
               />
 
               {/* Search Course input */}
@@ -533,6 +575,7 @@ export default function App() {
                   playBeepSound(newVal ? 580 : 380, newVal ? 850 : 540, 0.12);
                   showNotification(newVal ? "📦 Bundle mode enabled: Hiding accounts with extra courses." : "Bundle mode disabled.");
                 }}
+                theme={settings.theme}
               />
 
               {/* Active Bundle ID Builder panel */}
@@ -650,6 +693,7 @@ export default function App() {
                 activeCustomId={activeCustomRecordId}
                 onAddCourseToActive={handleAddCourseToActiveCustomId}
                 exactMatchOnly={exactMatchOnly}
+                theme={settings.theme}
               />
             </div>
           )}
@@ -664,6 +708,7 @@ export default function App() {
                 showNotification("Wiped history.");
                 playBeepSound(300, 150);
               }}
+              theme={settings.theme}
             />
           )}
 
@@ -680,6 +725,8 @@ export default function App() {
               soundEnabled={settings.soundEnabled}
               onShowNotification={(msg) => showNotification(msg)}
               onUpdateLabels={handleUpdateLabels}
+              onImportFavorites={handleImportFavorites}
+              theme={settings.theme}
             />
           )}
 
@@ -697,6 +744,7 @@ export default function App() {
                 setFavorites([]);
                 showNotification("Favorites bookmarks wiped.");
               }}
+              theme={settings.theme}
             />
           )}
 

@@ -13,11 +13,17 @@ interface HeaderProps {
 }
 
 export default function Header({ theme, onThemeToggle, onNavigateToSettings }: HeaderProps) {
+  const isDark = theme === "dark";
   return (
     <header className="relative flex items-start justify-between pt-6 pb-2 px-1 z-10" id="app-header">
       <div className="flex gap-4 items-center">
         {/* Real Custom UD Flame Logo representing the uploaded design */}
-        <div className="w-13 h-13 bg-slate-950 border border-white/5 rounded-2xl flex items-center justify-center shadow-2xl shrink-0 transition-transform hover:scale-105" id="logo-badge">
+        <div 
+          className={`w-13 h-13 border rounded-2xl flex items-center justify-center shadow-lg shrink-0 transition-transform hover:scale-105 ${
+            isDark ? "bg-slate-950 border-white/5" : "bg-white border-slate-200 shadow-sm"
+          }`} 
+          id="logo-badge"
+        >
           <svg className="w-10 h-10" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
             {/* Pink Flame (Left) */}
             <path 
@@ -48,7 +54,12 @@ export default function Header({ theme, onThemeToggle, onNavigateToSettings }: H
             <span className="text-[#22C55E]">UD </span>
             <span className="bg-gradient-to-r from-orange-400 via-yellow-400 to-pink-500 bg-clip-text text-transparent">Course Finder</span>
           </h1>
-          <p className="text-[#A0AEC0] text-xs sm:text-sm font-medium mt-0.5 leading-relaxed" id="header-subtitle">
+          <p 
+            className={`text-xs sm:text-sm font-medium mt-0.5 leading-relaxed ${
+              isDark ? "text-[#A0AEC0]" : "text-slate-650"
+            }`} 
+            id="header-subtitle"
+          >
             Search any course and get random accounts instantly ⚡
           </p>
         </div>
@@ -59,17 +70,25 @@ export default function Header({ theme, onThemeToggle, onNavigateToSettings }: H
         <button
           id="theme-toggle-btn"
           onClick={onThemeToggle}
-          className="p-2.5 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(20,25,45,0.6)] backdrop-blur-md text-white hover:bg-[rgba(255,255,255,0.06)] active:scale-95 transition-all duration-200 cursor-pointer"
+          className={`p-2.5 rounded-full border backdrop-blur-md active:scale-95 transition-all duration-200 cursor-pointer ${
+            isDark 
+              ? "border-[rgba(255,255,255,0.08)] bg-[rgba(20,25,45,0.6)] text-white hover:bg-[rgba(255,255,255,0.06)]" 
+              : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50 shadow-sm"
+          }`}
           aria-label="Toggle theme"
         >
-          {theme === 'dark' ? <Moon className="w-5 h-5 text-purple-400" /> : <Sun className="w-5 h-5 text-amber-400" />}
+          {theme === 'dark' ? <Moon className="w-5 h-5 text-purple-400" /> : <Sun className="w-5 h-5 text-amber-500" />}
         </button>
 
         {/* Settings Button */}
         <button
           id="settings-nav-btn"
           onClick={onNavigateToSettings}
-          className="p-2.5 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(20,25,45,0.6)] backdrop-blur-md text-[#A0AEC0] hover:text-white hover:bg-[rgba(255,255,255,0.06)] active:scale-95 transition-all duration-200 cursor-pointer"
+          className={`p-2.5 rounded-full border backdrop-blur-md active:scale-95 transition-all duration-200 cursor-pointer ${
+            isDark 
+              ? "border-[rgba(255,255,255,0.08)] bg-[rgba(20,25,45,0.6)] text-[#A0AEC0] hover:text-white hover:bg-[rgba(255,255,255,0.06)]" 
+              : "border-slate-200 bg-white text-slate-500 hover:text-slate-950 hover:bg-slate-50 shadow-sm"
+          }`}
           aria-label="Open settings"
         >
           <Settings className="w-5 h-5" />
