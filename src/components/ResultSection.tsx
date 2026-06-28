@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { RefreshCw, Copy, Check, Users, ChevronRight, Trash2, Shield, Heart, HelpCircle, Plus } from 'lucide-react';
+import { RefreshCw, Copy, Check, Users, ChevronRight, Trash2, Shield, Heart, HelpCircle, Plus, Loader2, AlertCircle, Tag, X } from 'lucide-react';
 import { AccountRecord } from '../types';
 import { copyTextToClipboard } from '../utils/clipboard';
 
@@ -21,6 +21,7 @@ interface ResultSectionProps {
   onAddCourseToActive?: (courseName: string) => void;
   exactMatchOnly?: boolean;
   theme?: 'dark' | 'light';
+  onUpdateLabels: (id: string, labels: string[]) => void;
 }
 
 export default function ResultSection({
@@ -35,11 +36,83 @@ export default function ResultSection({
   activeCustomId,
   onAddCourseToActive,
   exactMatchOnly = false,
-  theme = 'dark'
+  theme = 'dark',
+  onUpdateLabels
 }: ResultSectionProps) {
   // Visible list count for compact secondary records
   const [visibleCount, setVisibleCount] = useState(3);
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: 'id' | 'password' | null }>({});
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [verificationResults, setVerificationResults] = useState<Record<string, { success: boolean; message: string }>>({});
+  const [labelInputs, setLabelInputs] = useState<{ [id: string]: string }>({});
+
+  const handleAddLabel = (recordId: string, record: AccountRecord) => {
+    const rawVal = labelInputs[recordId] || '';
+    const labelVal = rawVal.trim();
+    if (!labelVal) return;
+
+    const currentLabels = record.labels || [];
+    if (currentLabels.includes(labelVal)) {
+      onShowNotification(`⚠ Label "${labelVal}" already exists on this ID`);
+      return;
+    }
+
+    const nextLabels = [...currentLabels, labelVal];
+    onUpdateLabels(recordId, nextLabels);
+    setLabelInputs(prev => ({ ...prev, [recordId]: '' }));
+    onShowNotification(`🏷️ Added label: ${labelVal}`);
+  };
+
+  const handleRemoveLabel = (recordId: string, record: AccountRecord, labelToRemove: string) => {
+    const currentLabels = record.labels || [];
+    const nextLabels = currentLabels.filter(l => l !== labelToRemove);
+    onUpdateLabels(recordId, nextLabels);
+    onShowNotification(`Removed label: ${labelToRemove}`);
+  };
+
+  const handleVerify = async (id: string, passwordString?: string) => {
+    const pw = passwordString || `password_${id}`;
+    setVerifyingId(id);
+    // Clear previous result for this ID
+    setVerificationResults(prev => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+
+    try {
+      const response = await fetch('/api/verify-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id, password: pw })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setVerificationResults(prev => ({
+          ...prev,
+          [id]: { success: true, message: data.message || 'Login verified successfully!' }
+        }));
+        onShowNotification(`✓ Account ${id} verified: ACTIVE`);
+      } else {
+        setVerificationResults(prev => ({
+          ...prev,
+          [id]: { success: false, message: data.error || 'Incorrect ID or password' }
+        }));
+        onShowNotification(`❌ Account ${id} failed: ${data.error || 'Incorrect credentials'}`);
+      }
+    } catch (error: any) {
+      console.error('Verification failed', error);
+      setVerificationResults(prev => ({
+        ...prev,
+        [id]: { success: false, message: error.message || 'Verification failed' }
+      }));
+      onShowNotification(`❌ Verification request failed`);
+    } finally {
+      setVerifyingId(null);
+    }
+  };
 
   const playCopySound = () => {
     if (!soundEnabled) return;
@@ -242,6 +315,146 @@ export default function ResultSection({
               </ul>
             </div>
           </div>
+
+          {/* Dynamic Multiple Labels/Tags Section */}
+          <div className={`flex flex-col gap-2.5 pt-3 border-t text-xs ${isDark ? "border-white/[0.04]" : "border-slate-100"}`} id={`random-labels-section-${randomRecord.id}`}>
+            <div className="flex items-center justify-between" id={`random-labels-header-${randomRecord.id}`}>
+              <span className={`text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 ${isDark ? "text-[#A0AEC0]" : "text-slate-500"}`}>
+                <Tag className="w-3 h-3 text-purple-500" />
+                <span>Labels</span>
+              </span>
+              {randomRecord.labels && randomRecord.labels.length > 0 && (
+                <span className="text-[9px] font-bold text-purple-500 italic">
+                  {randomRecord.labels.length} {randomRecord.labels.length === 1 ? 'label' : 'labels'}
+                </span>
+              )}
+            </div>
+
+            {/* Displaying Labels as sleek pill badges */}
+            <div className="flex flex-wrap gap-1.5" id={`random-labels-pills-${randomRecord.id}`}>
+              {randomRecord.labels && randomRecord.labels.length > 0 ? (
+                randomRecord.labels.map((label, labelIdx) => (
+                  <div
+                    key={labelIdx}
+                    id={`random-label-pill-${randomRecord.id}-${label}`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-normal transition-all duration-150 ${
+                      isDark 
+                        ? "bg-purple-500/10 border border-purple-500/25 text-[#D8B4FE] hover:bg-purple-500/15" 
+                        : "bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100"
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <button
+                      type="button"
+                      id={`random-label-remove-btn-${randomRecord.id}-${label}`}
+                      onClick={() => handleRemoveLabel(randomRecord.id, randomRecord, label)}
+                      className="hover:bg-purple-500/30 text-purple-500 hover:text-purple-800 rounded-full p-0.5 transition-colors cursor-pointer shrink-0"
+                      title={`Delete label "${label}"`}
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <span className="text-[10px] text-slate-450 italic">No custom labels added yet</span>
+              )}
+            </div>
+
+            {/* Add dynamic labels input form */}
+            <form
+              id={`random-add-label-form-${randomRecord.id}`}
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAddLabel(randomRecord.id, randomRecord);
+              }}
+              className="flex gap-2 items-center mt-0.5"
+            >
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  id={`random-label-input-${randomRecord.id}`}
+                  value={labelInputs[randomRecord.id] || ''}
+                  onChange={(e) => setLabelInputs(prev => ({ ...prev, [randomRecord.id]: e.target.value }))}
+                  placeholder="Add label (e.g. Premium, Exam)"
+                  maxLength={24}
+                  className={`w-full border rounded-xl px-3 py-1.5 text-[11px] outline-none transition-all duration-200 ${
+                    isDark 
+                      ? "bg-[#14192D]/40 border-white/[0.06] focus:border-purple-500/30 text-white placeholder-[#A0AEC0]/40" 
+                      : "bg-slate-50 border-slate-205 focus:border-purple-400 text-slate-800 placeholder-slate-400"
+                  }`}
+                />
+              </div>
+              <button
+                type="submit"
+                id={`random-label-submit-${randomRecord.id}`}
+                className={`p-1.5 border rounded-xl transition-all duration-150 active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
+                  isDark 
+                    ? "bg-purple-500/20 hover:bg-purple-500/35 border-purple-500/30 text-purple-200" 
+                    : "bg-purple-100 border-purple-250 text-purple-750 hover:bg-purple-200"
+                }`}
+                title="Add Label Tag"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          </div>
+
+          {/* Account Login Verification Button & Status */}
+          <div className={`mt-2 pt-3 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+            isDark ? "border-white/[0.06]" : "border-slate-100"
+          }`} id={`random-verification-block-${randomRecord.id}`}>
+            <div className="flex flex-col gap-0.5">
+              <span className={`text-[10px] font-extrabold uppercase tracking-widest ${isDark ? "text-[#A0AEC0]" : "text-slate-450"}`}>
+                Uttoron Academy Login Check
+              </span>
+              <div className="flex items-center gap-1.5">
+                {verificationResults[randomRecord.id] ? (
+                  verificationResults[randomRecord.id].success ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                      <Check className="w-3.5 h-3.5" /> Checked: Verified Right
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-md">
+                      <AlertCircle className="w-3.5 h-3.5 animate-pulse" /> Checked: Verified Wrong
+                    </span>
+                  )
+                ) : (
+                  <span className={`text-xs ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                    Not checked yet
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <button
+              id="verify-login-btn"
+              type="button"
+              disabled={verifyingId === randomRecord.id}
+              onClick={() => handleVerify(randomRecord.id, randomRecord.password)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                verifyingId === randomRecord.id
+                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/20'
+                  : verificationResults[randomRecord.id]
+                    ? verificationResults[randomRecord.id].success
+                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400'
+                      : 'bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400'
+                    : isDark
+                      ? 'bg-[#8F5CFF] hover:bg-[#7B4AE2] text-white border-none shadow-[0_4px_14px_rgba(143,92,255,0.32)] active:scale-95'
+                      : 'bg-purple-650 hover:bg-purple-750 text-white border-none shadow-xs active:scale-95 font-bold'
+              }`}
+            >
+              {verifyingId === randomRecord.id ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Verifying...</span>
+                </>
+              ) : verificationResults[randomRecord.id] ? (
+                <span>Verify Again</span>
+              ) : (
+                <span>Check Credentials</span>
+              )}
+            </button>
+          </div>
         </div>
       ) : (
         <div className={`rounded-[20px] border border-dashed p-8 text-center flex flex-col items-center justify-center gap-3 ${
@@ -383,6 +596,141 @@ export default function ResultSection({
                       </li>
                     ))}
                   </ul>
+                </div>
+
+                {/* Dynamic Multiple Labels/Tags Section */}
+                <div className={`flex flex-col gap-2 pt-2 border-t text-[11px] ${isDark ? "border-white/[0.04]" : "border-slate-100"}`} id={`secondary-labels-section-${record.id}`}>
+                  <div className="flex items-center justify-between" id={`secondary-labels-header-${record.id}`}>
+                    <span className={`text-[9px] font-extrabold uppercase tracking-wider flex items-center gap-1 ${isDark ? "text-[#A0AEC0]" : "text-slate-500"}`}>
+                      <Tag className="w-2.5 h-2.5 text-purple-500" />
+                      <span>Labels</span>
+                    </span>
+                    {record.labels && record.labels.length > 0 && (
+                      <span className="text-[8px] font-bold text-purple-500 italic">
+                        {record.labels.length} {record.labels.length === 1 ? 'label' : 'labels'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Displaying Labels as sleek pill badges */}
+                  <div className="flex flex-wrap gap-1" id={`secondary-labels-pills-${record.id}`}>
+                    {record.labels && record.labels.length > 0 ? (
+                      record.labels.map((label, labelIdx) => (
+                        <div
+                          key={labelIdx}
+                          id={`secondary-label-pill-${record.id}-${label}`}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-normal transition-all duration-150 ${
+                            isDark 
+                              ? "bg-purple-500/10 border border-purple-500/20 text-[#D8B4FE] hover:bg-purple-500/15" 
+                              : "bg-purple-50 border border-purple-150 text-purple-700 hover:bg-purple-100"
+                          }`}
+                        >
+                          <span>{label}</span>
+                          <button
+                            type="button"
+                            id={`secondary-label-remove-btn-${record.id}-${label}`}
+                            onClick={() => handleRemoveLabel(record.id, record, label)}
+                            className="hover:bg-purple-500/30 text-purple-500 hover:text-purple-800 rounded-full p-0.5 transition-colors cursor-pointer shrink-0"
+                            title={`Delete label "${label}"`}
+                          >
+                            <X className="w-2 h-2" />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-[9px] text-slate-450 italic">No custom labels</span>
+                    )}
+                  </div>
+
+                  {/* Add dynamic labels input form */}
+                  <form
+                    id={`secondary-add-label-form-${record.id}`}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleAddLabel(record.id, record);
+                    }}
+                    className="flex gap-1.5 items-center mt-0.5"
+                  >
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        id={`secondary-label-input-${record.id}`}
+                        value={labelInputs[record.id] || ''}
+                        onChange={(e) => setLabelInputs(prev => ({ ...prev, [record.id]: e.target.value }))}
+                        placeholder="Add label tag"
+                        maxLength={24}
+                        className={`w-full border rounded-lg px-2.5 py-1 text-[10px] outline-none transition-all duration-200 ${
+                          isDark 
+                            ? "bg-[#14192D]/40 border-white/[0.05] focus:border-purple-500/30 text-white placeholder-[#A0AEC0]/35" 
+                            : "bg-slate-50 border-slate-200 focus:border-purple-400 text-slate-800 placeholder-slate-450"
+                        }`}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      id={`secondary-label-submit-${record.id}`}
+                      className={`p-1 border rounded-lg transition-all duration-150 active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
+                        isDark 
+                          ? "bg-purple-500/20 hover:bg-purple-500/35 border-purple-500/25 text-purple-200" 
+                          : "bg-purple-100 border-purple-200 text-purple-750 hover:bg-purple-200"
+                      }`}
+                      title="Add Label"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </form>
+                </div>
+
+                {/* Secondary Account Login Verification Button & Status */}
+                <div className={`mt-1.5 pt-2 border-t flex flex-row items-center justify-between gap-3 ${
+                  isDark ? "border-white/[0.04]" : "border-slate-100"
+                }`} id={`secondary-verification-block-${record.id}`}>
+                  <div className="flex items-center gap-1.5 flex-1">
+                    {verificationResults[record.id] ? (
+                      verificationResults[record.id].success ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                          <Check className="w-3 h-3" /> Verified Right
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-md">
+                          <AlertCircle className="w-3 h-3 animate-pulse" /> Verified Wrong
+                        </span>
+                      )
+                    ) : (
+                      <span className={`text-[10px] ${isDark ? "text-gray-500" : "text-slate-400"}`}>
+                        Not checked
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    id={`secondary-verify-btn-${record.id}`}
+                    type="button"
+                    disabled={verifyingId === record.id}
+                    onClick={() => handleVerify(record.id, record.password)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      verifyingId === record.id
+                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/20'
+                        : verificationResults[record.id]
+                          ? verificationResults[record.id].success
+                            ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400'
+                            : 'bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400'
+                          : isDark
+                            ? 'bg-[#8F5CFF] hover:bg-[#7B4AE2] text-white border-none shadow-[0_2px_8px_rgba(143,92,255,0.22)] active:scale-95'
+                            : 'bg-purple-650 hover:bg-purple-750 text-white border-none shadow-xs active:scale-95 font-bold'
+                    }`}
+                  >
+                    {verifyingId === record.id ? (
+                      <>
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : verificationResults[record.id] ? (
+                      <span>Re-verify</span>
+                    ) : (
+                      <span>Verify</span>
+                    )}
+                  </button>
                 </div>
               </div>
             ))}

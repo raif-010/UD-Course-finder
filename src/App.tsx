@@ -469,6 +469,12 @@ export default function App() {
       return rec;
     });
     updateRecordsStateAndCache(updatedRecords);
+
+    // Sync active randomRecord view immediately
+    const found = updatedRecords.find(r => r.id === id);
+    if (found && randomRecord && randomRecord.id === id) {
+      setRandomRecord(found);
+    }
   };
 
   const handleImportFavorites = (importedRecords: AccountRecord[]) => {
@@ -694,6 +700,7 @@ export default function App() {
                 onAddCourseToActive={handleAddCourseToActiveCustomId}
                 exactMatchOnly={exactMatchOnly}
                 theme={settings.theme}
+                onUpdateLabels={handleUpdateLabels}
               />
             </div>
           )}

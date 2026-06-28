@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Heart, Key, Copy, Check, Trash2, Shield, HeartOff, Users, Tag, Plus, X, Download, Upload } from 'lucide-react';
+import { Heart, Key, Copy, Check, Trash2, Shield, HeartOff, Users, Tag, Plus, X, Download, Upload, Search } from 'lucide-react';
 import { AccountRecord } from '../types';
 import { copyTextToClipboard } from '../utils/clipboard';
 
@@ -32,6 +32,7 @@ export default function FavoritesPanel({
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: 'id' | 'password' | null }>({});
   const [labelInputs, setLabelInputs] = useState<{ [id: string]: string }>({});
   const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const isDark = theme === 'dark';
 
   const handleExportFavorites = () => {
@@ -129,9 +130,28 @@ export default function FavoritesPanel({
     ? selectedLabelFilter
     : null;
 
-  const filteredFavorites = activeFilter
-    ? favorites.filter(rec => (rec.labels || []).includes(activeFilter))
-    : favorites;
+  const searchedFavorites = React.useMemo(() => {
+    let result = favorites;
+    
+    // Filter by label if selected
+    if (activeFilter) {
+      result = result.filter(rec => (rec.labels || []).includes(activeFilter));
+    }
+    
+    // Filter by search query
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter(rec => {
+        if (rec.id.toLowerCase().includes(q)) return true;
+        if (rec.password && rec.password.toLowerCase().includes(q)) return true;
+        if (rec.courses.some(c => c.toLowerCase().includes(q))) return true;
+        if (rec.labels && rec.labels.some(l => l.toLowerCase().includes(q))) return true;
+        return false;
+      });
+    }
+    
+    return result;
+  }, [favorites, activeFilter, searchQuery]);
 
   const handleAddLabel = (recordId: string) => {
     const rawVal = labelInputs[recordId] || '';
@@ -284,6 +304,36 @@ export default function FavoritesPanel({
         </div>
       ) : (
         <div className="flex flex-col gap-4" id="favorites-items-list-container">
+          {/* Favorites Search Bar */}
+          <div className="relative flex items-center" id="favorites-search-bar-wrapper">
+            <Search className={`absolute left-3.5 w-4 h-4 ${isDark ? "text-purple-400/70" : "text-purple-650/70"}`} />
+            <input
+              type="text"
+              id="favorites-search-input"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search favorites by ID, courses, labels..."
+              className={`w-full pl-10 pr-10 py-3 text-xs font-semibold rounded-2xl border outline-none transition-all duration-350 shadow-md ${
+                isDark 
+                  ? "bg-[#0c0f20] border-purple-500/15 focus:border-purple-500/45 text-white placeholder-white/20 focus:shadow-[0_0_15px_rgba(168,85,247,0.15)]" 
+                  : "bg-white border-slate-205 focus:border-purple-400 text-slate-800 placeholder-slate-400 focus:shadow-[0_0_15px_rgba(168,85,247,0.08)]"
+              }`}
+            />
+            {searchQuery && (
+              <button
+                id="favorites-search-clear-btn"
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className={`absolute right-3.5 p-1 rounded-full transition-colors ${
+                  isDark ? "hover:bg-white/5 text-[#A0AEC0]" : "hover:bg-slate-100 text-slate-400"
+                }`}
+                title="Clear Search Query"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
           {/* Label Selector Filter Chips */}
           {allUniqueLabels.length > 0 && (
             <div className={`border p-4 rounded-[20px] flex flex-col gap-3 ${
@@ -338,8 +388,24 @@ export default function FavoritesPanel({
             </div>
           )}
 
-          <div className="flex flex-col gap-4" id="favorites-items-list-cards">
-            {filteredFavorites.map((record) => (
+          {searchedFavorites.length === 0 ? (
+            <div 
+              className={`rounded-[20px] border border-dashed p-10 text-center flex flex-col items-center justify-center gap-2.5 ${
+                isDark 
+                  ? "border-white/[0.08] bg-[rgba(20,25,45,0.2)] text-[#A0AEC0]" 
+                  : "border-slate-200 bg-slate-50/50 text-slate-400"
+              }`} 
+              id="empty-favorites-search"
+            >
+              <Search className={`w-8 h-8 ${isDark ? "text-purple-400/30" : "text-purple-500/40"}`} />
+              <h3 className="text-xs font-black uppercase tracking-wider text-purple-500/75">No Search Matches</h3>
+              <p className={`text-[11px] max-w-[220px] leading-relaxed ${isDark ? "text-slate-450" : "text-slate-500"}`}>
+                No pinned credentials match your query "{searchQuery}".
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4" id="favorites-items-list-cards">
+              {searchedFavorites.map((record) => (
             <div
               key={record.id}
               id={`favorite-card-${record.id}`}
@@ -498,6 +564,7 @@ export default function FavoritesPanel({
             </div>
           ))}
           </div>
+          )}
         </div>
       )}
     </div>
