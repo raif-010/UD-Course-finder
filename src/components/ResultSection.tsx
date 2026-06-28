@@ -88,6 +88,15 @@ export default function ResultSection({
         },
         body: JSON.stringify({ id, password: pw })
       });
+      
+      const contentType = response.headers.get("content-type") || "";
+      if (!response.ok || contentType.includes("text/html")) {
+        if (contentType.includes("text/html")) {
+          throw new Error("Sandbox proxy cookie protection active. Please open the app in a new tab using the top-right button to verify.");
+        }
+        throw new Error(`HTTP Error ${response.status}`);
+      }
+
       const data = await response.json();
       if (data.success) {
         setVerificationResults(prev => ({
@@ -104,11 +113,16 @@ export default function ResultSection({
       }
     } catch (error: any) {
       console.error('Verification failed', error);
+      const isProxyError = error.message && (error.message.includes("Sandbox proxy") || error.message.includes("Unexpected token '<'"));
+      const finalMsg = isProxyError 
+        ? "Please open the app in a new tab (using the button in top-right) to bypass iframe sandbox restrictions."
+        : (error.message || 'Verification failed');
+        
       setVerificationResults(prev => ({
         ...prev,
-        [id]: { success: false, message: error.message || 'Verification failed' }
+        [id]: { success: false, message: finalMsg }
       }));
-      onShowNotification(`❌ Verification request failed`);
+      onShowNotification(isProxyError ? `⚠️ Open in a new tab to bypass cookie protection` : `❌ Verification request failed`);
     } finally {
       setVerifyingId(null);
     }
@@ -407,21 +421,33 @@ export default function ResultSection({
               <span className={`text-[10px] font-extrabold uppercase tracking-widest ${isDark ? "text-[#A0AEC0]" : "text-slate-450"}`}>
                 Uttoron Academy Login Check
               </span>
-              <div className="flex items-center gap-1.5">
-                {verificationResults[randomRecord.id] ? (
-                  verificationResults[randomRecord.id].success ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                      <Check className="w-3.5 h-3.5" /> Checked: Verified Right
-                    </span>
+              <div className="flex flex-col gap-1 mt-0.5">
+                <div className="flex items-center gap-1.5">
+                  {verificationResults[randomRecord.id] ? (
+                    verificationResults[randomRecord.id].success ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                        <Check className="w-3.5 h-3.5" /> Checked: Verified Right
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-md">
+                        <AlertCircle className="w-3.5 h-3.5 animate-pulse" /> Checked: Verified Wrong
+                      </span>
+                    )
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-md">
-                      <AlertCircle className="w-3.5 h-3.5 animate-pulse" /> Checked: Verified Wrong
+                    <span className={`text-xs ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                      Not checked yet
                     </span>
-                  )
-                ) : (
-                  <span className={`text-xs ${isDark ? "text-gray-400" : "text-slate-500"}`}>
-                    Not checked yet
-                  </span>
+                  )}
+                </div>
+                {verificationResults[randomRecord.id] && !verificationResults[randomRecord.id].success && (
+                  <p className="text-[11px] font-medium text-rose-450 leading-tight max-w-xs mt-0.5">
+                    Reason: {verificationResults[randomRecord.id].message}
+                  </p>
+                )}
+                {verificationResults[randomRecord.id] && verificationResults[randomRecord.id].success && (
+                  <p className="text-[11px] font-medium text-emerald-450 leading-tight max-w-xs mt-0.5">
+                    {verificationResults[randomRecord.id].message}
+                  </p>
                 )}
               </div>
             </div>

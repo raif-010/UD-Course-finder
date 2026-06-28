@@ -33,10 +33,23 @@ app.post("/api/verify-account", async (req, res) => {
     const antiforgeryCookie = setCookieHeaders.find(c => c.includes(".AspNetCore.Antiforgery"));
     const cookieValue = antiforgeryCookie ? antiforgeryCookie.split(";")[0] : "";
 
-    // Extract RequestVerificationToken value using a regex
-    const tokenRegex = /name="__RequestVerificationToken"\s+type="hidden"\s+value="([^"]+)"/;
-    const match = getHtml.match(tokenRegex);
-    const token = match ? match[1] : "";
+    // Robust token extraction: Find the input tag with name="__RequestVerificationToken" first
+    let token = "";
+    const tokenInputRegex = /<input[^>]+name="__RequestVerificationToken"[^>]*>/i;
+    const tokenInputMatch = getHtml.match(tokenInputRegex);
+    if (tokenInputMatch) {
+      const valueMatch = tokenInputMatch[0].match(/value="([^"]+)"/i) || tokenInputMatch[0].match(/value='([^']+)'/i);
+      if (valueMatch) {
+        token = valueMatch[1];
+      }
+    }
+    
+    // Fallback to old regex
+    if (!token) {
+      const tokenRegex = /name="__RequestVerificationToken"\s+type="hidden"\s+value="([^"]+)"/;
+      const match = getHtml.match(tokenRegex);
+      token = match ? match[1] : "";
+    }
 
     // 2. POST to verify login
     const bodyParams = new URLSearchParams();
@@ -81,16 +94,36 @@ app.post("/api/verify-account", async (req, res) => {
       });
     }
 
-    // If it's a 200 or failed redirect, read HTML to see if there's any validation message
-    const responseText = await postRes.text();
     let errorMessage = "Incorrect registration number or password";
 
-    // Match validation summary or error message in HTML
-    const errorMatch = responseText.match(/class="[^"]*text-danger[^"]*"[^>]*>([^<]+)</) ||
-                       responseText.match(/class="[^"]*validation-summary-errors[^"]*"[^>]*>[\s\S]*?<li>([\s\S]*?)<\/li>/);
+    // If it is a failed redirect, the error message is often passed as a query parameter (e.g., &message=...)
+    if (isFailedRedirect && location) {
+      try {
+        const urlObj = new URL(location, "https://online.uttoron.academy");
+        const msg = urlObj.searchParams.get("message");
+        if (msg) {
+          errorMessage = decodeURIComponent(msg);
+        }
+      } catch (e) {
+        // Fallback
+      }
+    } else {
+      // If it's a 200 or failed redirect, read HTML to see if there's any validation message
+      const responseText = await postRes.text();
 
-    if (errorMatch) {
-      errorMessage = errorMatch[1].trim();
+      // Match validation summary or error message in HTML
+      const errorMatch = responseText.match(/class="[^"]*text-danger[^"]*"[^>]*>([^<]+)</) ||
+                         responseText.match(/class="[^"]*validation-summary-errors[^"]*"[^>]*>[\s\S]*?<li>([\s\S]*?)<\/li>/);
+
+      if (errorMatch) {
+        errorMessage = errorMatch[1].trim();
+      } else {
+        if (responseText.includes("Invalid Password") || responseText.includes("invalid password")) {
+          errorMessage = "Invalid Password";
+        } else if (responseText.includes("Invalid registration number") || responseText.includes("Invalid Registration Number")) {
+          errorMessage = "Invalid Registration Number";
+        }
+      }
     }
 
     return res.json({
