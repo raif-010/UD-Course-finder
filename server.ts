@@ -107,6 +107,50 @@ app.post("/api/verify-account", async (req, res) => {
   }
 });
 
+// Internet connectivity check endpoint
+app.get("/api/check-internet", async (req, res) => {
+  const startTime = Date.now();
+  try {
+    // Attempting to fetch a highly robust external site with a short timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    const checkRes = await fetch("https://www.google.com", {
+      method: "HEAD", // HEAD is extremely fast and lightweight
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+      }
+    });
+
+    clearTimeout(timeoutId);
+    const endTime = Date.now();
+    const latency = endTime - startTime;
+
+    return res.json({
+      success: true,
+      status: checkRes.status,
+      latencyMs: latency,
+      timestamp: new Date().toLocaleTimeString(),
+      provider: "Google Cloud DNS Resolver"
+    });
+  } catch (err: any) {
+    const endTime = Date.now();
+    const latency = endTime - startTime;
+    let errorMsg = err.message || String(err);
+    if (err.name === 'AbortError') {
+      errorMsg = "Connection timed out (no response within 6.0 seconds)";
+    }
+    
+    return res.json({
+      success: false,
+      latencyMs: latency,
+      error: errorMsg,
+      timestamp: new Date().toLocaleTimeString()
+    });
+  }
+});
+
 // Serve assets
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

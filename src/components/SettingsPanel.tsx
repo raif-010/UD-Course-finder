@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
-import { Volume2, VolumeX, CheckSquare, Square, RefreshCw, FileSpreadsheet, Info, Mail, Zap, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Volume2, VolumeX, CheckSquare, Square, RefreshCw, FileSpreadsheet, Info, Mail, Zap, Trash2, Wifi, WifiOff, Globe, Loader2, Activity, Server, Clock } from 'lucide-react';
 import { AppSettings } from '../types';
 
 interface SettingsPanelProps {
@@ -13,6 +13,7 @@ interface SettingsPanelProps {
   onResetDatabase: (rowsCount: number) => void;
   onClearHistory: () => void;
   onClearFavorites: () => void;
+  onShowNotification?: (message: string) => void;
   theme?: 'dark' | 'light';
 }
 
@@ -22,9 +23,79 @@ export default function SettingsPanel({
   onResetDatabase,
   onClearHistory,
   onClearFavorites,
+  onShowNotification,
   theme = 'dark'
 }: SettingsPanelProps) {
   const isDark = theme === 'dark';
+
+  // Network Connectivity States
+  const [checkingInternet, setCheckingInternet] = useState(false);
+  const [browserOnline, setBrowserOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const [internetStatusResult, setInternetStatusResult] = useState<{
+    success: boolean;
+    latencyMs: number;
+    status?: number;
+    timestamp: string;
+    provider?: string;
+    error?: string;
+  } | null>(null);
+
+  // Monitor hardware connection events
+  useEffect(() => {
+    const handleOnline = () => setBrowserOnline(true);
+    const handleOffline = () => setBrowserOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const handleCheckInternet = async () => {
+    setCheckingInternet(true);
+    setInternetStatusResult(null);
+
+    try {
+      const response = await fetch('/api/check-internet');
+      const data = await response.json();
+
+      setInternetStatusResult({
+        success: data.success,
+        latencyMs: data.latencyMs,
+        status: data.status,
+        timestamp: data.timestamp,
+        provider: data.provider,
+        error: data.error
+      });
+
+      if (data.success) {
+        if (onShowNotification) {
+          onShowNotification(`✓ Internet is active! Ping: ${data.latencyMs}ms`);
+        }
+      } else {
+        if (onShowNotification) {
+          onShowNotification(`❌ Open Internet check failed: ${data.error || 'Timeout'}`);
+        }
+      }
+    } catch (err: any) {
+      setInternetStatusResult({
+        success: false,
+        latencyMs: 0,
+        timestamp: new Date().toLocaleTimeString(),
+        error: err.message || 'Failed to make API request'
+      });
+      if (onShowNotification) {
+        onShowNotification(`❌ Internet verification request failed`);
+      }
+    } finally {
+      setCheckingInternet(false);
+    }
+  };
   
   const toggleSound = () => {
     onUpdateSettings({ soundEnabled: !settings.soundEnabled });
@@ -124,6 +195,155 @@ export default function SettingsPanel({
             <div className={`w-[18px] h-[18px] rounded-full bg-white absolute top-[3px] transition-all duration-200 ${settings.autoCopyPassword ? 'left-[24px]' : 'left-[3px]'}`} />
           </button>
         </div>
+      </div>
+
+      {/* 2.5 Internet / Network Connectivity Check Section */}
+      <div className={`rounded-[20px] border p-5 flex flex-col gap-4 ${
+        isDark ? "border-white/[0.06] bg-[rgba(20,25,45,0.6)] backdrop-blur-md" : "border-slate-200 bg-white shadow-sm"
+      }`} id="network-connectivity-card">
+        <h3 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-1.5 ${
+          isDark ? "text-[#A855F7]" : "text-purple-650"
+        }`}>
+          <Globe className="w-4 h-4 text-purple-500 animate-pulse" />
+          <span>Network Connectivity</span>
+        </h3>
+        <p className={`text-xs ${isDark ? "text-[#A0AEC0]" : "text-slate-500 font-medium"}`}>
+          Monitor active adapter states and test open internet verification endpoints.
+        </p>
+
+        {/* Status Indicators Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1" id="network-status-rows">
+          {/* Hardware Adapter State */}
+          <div className={`p-3 rounded-xl border flex items-center justify-between ${
+            isDark ? "bg-[#14192D]/40 border-white/[0.04]" : "bg-slate-50 border-slate-100"
+          }`} id="adapter-state-box">
+            <div className="flex items-center gap-2.5">
+              <div className={`p-1.5 rounded-lg ${
+                browserOnline 
+                  ? "bg-emerald-500/10 text-emerald-400" 
+                  : "bg-rose-500/10 text-rose-400"
+              }`}>
+                {browserOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+              </div>
+              <div className="flex flex-col">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-[#A0AEC0]" : "text-slate-400"}`}>
+                  Adapter Status
+                </span>
+                <span className={`text-xs font-extrabold ${browserOnline ? "text-emerald-500" : "text-rose-500"}`}>
+                  {browserOnline ? "Online" : "Offline"}
+                </span>
+              </div>
+            </div>
+            <div className={`w-2 h-2 rounded-full ${browserOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
+          </div>
+
+          {/* Test Action Trigger */}
+          <button
+            id="test-ping-btn"
+            type="button"
+            disabled={checkingInternet}
+            onClick={handleCheckInternet}
+            className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 cursor-pointer flex items-center justify-center gap-2 ${
+              checkingInternet 
+                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/20' 
+                : isDark 
+                  ? 'bg-[#8F5CFF] hover:bg-[#7B4AE2] text-white border-none shadow-[0_4px_14px_rgba(143,92,255,0.32)] font-extrabold' 
+                  : 'bg-purple-650 hover:bg-purple-750 text-white border-none shadow-xs font-extrabold'
+            }`}
+          >
+            {checkingInternet ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Pinging Open Internet...</span>
+              </>
+            ) : (
+              <>
+                <Activity className="w-4 h-4 text-purple-200" />
+                <span>Test Internet Status</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Results Panel */}
+        {internetStatusResult && (
+          <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
+            internetStatusResult.success 
+              ? isDark ? "bg-emerald-500/[0.02] border-emerald-500/20" : "bg-emerald-50/50 border-emerald-200"
+              : isDark ? "bg-rose-500/[0.02] border-rose-500/20" : "bg-rose-50/50 border-rose-200"
+          }`} id="ping-test-results">
+            
+            {/* Verdict Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-dashed border-slate-200/10" id="ping-verdict-header">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#A0AEC0]">
+                Ping Verdict
+              </span>
+              {internetStatusResult.success ? (
+                <span className="text-[10px] font-extrabold text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  Internet Active
+                </span>
+              ) : (
+                <span className="text-[10px] font-extrabold text-rose-500 uppercase tracking-widest bg-rose-500/10 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  Failed
+                </span>
+              )}
+            </div>
+
+            {/* Verdict Details Grid */}
+            <div className="grid grid-cols-2 gap-2 text-xs" id="ping-verdict-details">
+              <div className="flex items-center gap-2">
+                <Clock className={`w-3.5 h-3.5 ${isDark ? "text-purple-400" : "text-purple-600"}`} />
+                <div className="flex flex-col">
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isDark ? "text-[#A0AEC0]" : "text-slate-400"}`}>Latency</span>
+                  <span className={`font-mono text-[11px] font-bold ${internetStatusResult.success ? "text-emerald-500" : "text-rose-500"}`}>
+                    {internetStatusResult.success ? `${internetStatusResult.latencyMs} ms` : 'N/A'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Server className={`w-3.5 h-3.5 ${isDark ? "text-purple-400" : "text-purple-600"}`} />
+                <div className="flex flex-col">
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isDark ? "text-[#A0AEC0]" : "text-slate-400"}`}>DNS Gateway</span>
+                  <span className={`text-[10px] font-bold ${isDark ? "text-white" : "text-slate-800"}`}>
+                    {internetStatusResult.provider || 'Local Failover'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Clock className={`w-3.5 h-3.5 ${isDark ? "text-purple-400" : "text-purple-600"}`} />
+                <div className="flex flex-col">
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isDark ? "text-[#A0AEC0]" : "text-slate-400"}`}>Check Time</span>
+                  <span className={`text-[10px] font-semibold ${isDark ? "text-white" : "text-slate-800"}`}>
+                    {internetStatusResult.timestamp}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Globe className={`w-3.5 h-3.5 ${isDark ? "text-purple-400" : "text-purple-600"}`} />
+                <div className="flex flex-col">
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isDark ? "text-[#A0AEC0]" : "text-slate-400"}`}>Status Code</span>
+                  <span className={`text-[10px] font-mono font-bold ${isDark ? "text-white" : "text-slate-800"}`}>
+                    {internetStatusResult.status ? `${internetStatusResult.status} HEAD` : 'ERR/ABORT'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Error Message if failed */}
+            {!internetStatusResult.success && internetStatusResult.error && (
+              <div className={`text-[10px] font-semibold font-mono p-2 rounded-lg border leading-normal mt-1 border-rose-500/10 ${
+                isDark ? "bg-rose-500/5 text-rose-400" : "bg-rose-50 text-rose-700"
+              }`} id="ping-error-details">
+                Reason: {internetStatusResult.error}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 3. virtual Spreadsheet Database Size Generation */}

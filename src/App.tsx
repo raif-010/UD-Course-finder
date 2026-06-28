@@ -751,6 +751,7 @@ export default function App() {
                 setFavorites([]);
                 showNotification("Favorites bookmarks wiped.");
               }}
+              onShowNotification={(msg) => showNotification(msg)}
               theme={settings.theme}
             />
           )}
