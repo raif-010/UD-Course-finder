@@ -25,6 +25,7 @@ export default function App() {
   const [activeCustomRecordId, setActiveCustomRecordId] = useState<string | null>(null);
   const [exactMatchOnly, setExactMatchOnly] = useState<boolean>(false);
   const [exclusiveMatchOnly, setExclusiveMatchOnly] = useState<boolean>(false);
+  const [isInIframe, setIsInIframe] = useState<boolean>(false);
   
   // Selected single random record for home card
   const [randomRecord, setRandomRecord] = useState<AccountRecord | null>(null);
@@ -68,6 +69,12 @@ export default function App() {
 
   // Initialize spreadsheet database on boot
   useEffect(() => {
+    try {
+      setIsInIframe(window.self !== window.top);
+    } catch (e) {
+      setIsInIframe(true);
+    }
+
     const savedRecordsJSON = localStorage.getItem("uploaded_records");
     const savedFileName = localStorage.getItem("uploaded_file_name");
     if (savedRecordsJSON && savedFileName) {
@@ -545,6 +552,39 @@ export default function App() {
             playBeepSound(600, 800);
           }}
         />
+
+        {isInIframe && (
+          <div 
+            className={`mt-4 p-4 rounded-[20px] border flex items-start gap-3.5 shadow-xl transition-all ${
+              isDarkTheme 
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-200' 
+                : 'bg-amber-50 border-amber-200 text-amber-800'
+            }`}
+            id="iframe-warning-banner"
+          >
+            <AlertCircle className="w-5.5 h-5.5 shrink-0 text-amber-500 mt-0.5 animate-pulse" />
+            <div className="flex-1 flex flex-col gap-1.5">
+              <span className="text-xs font-black uppercase tracking-wider leading-tight">IFrame Cookie Protection Active</span>
+              <p className="text-[11px] font-medium leading-relaxed opacity-90">
+                To run live **Uttoron Academy Login Checks**, browsers require you to bypass standard iframe cookie blocks by opening this application in a new tab.
+              </p>
+              <a 
+                href={window.location.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`text-[11px] font-bold inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-xl border transition-all hover:scale-[1.02] cursor-pointer ${
+                  isDarkTheme 
+                    ? 'bg-amber-500/20 border-amber-500/35 hover:bg-amber-500/30 text-amber-300' 
+                    : 'bg-amber-100 border-amber-200 hover:bg-amber-200 text-amber-900'
+                }`}
+                onClick={() => playBeepSound(523, 784, 0.15)}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Open App in New Tab
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* Content Tabs Frame switcher */}
         <div className="mt-7 flex flex-col gap-6" id="inner-pages-scroller">
