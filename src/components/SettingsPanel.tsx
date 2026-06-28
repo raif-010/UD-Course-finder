@@ -60,41 +60,101 @@ export default function SettingsPanel({
     setCheckingInternet(true);
     setInternetStatusResult(null);
 
+    const startTime = Date.now();
+    let success = false;
+    let latencyMs = 0;
+    let status = 200;
+    let provider = "Cloudflare/Ipify CDN Resolver";
+    let error: string | undefined = undefined;
+
+    // Try primary client-side verification endpoint (Ipify)
     try {
-      const response = await fetch('/api/check-internet');
-      const data = await response.json();
-
-      setInternetStatusResult({
-        success: data.success,
-        latencyMs: data.latencyMs,
-        status: data.status,
-        timestamp: data.timestamp,
-        provider: data.provider,
-        error: data.error
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const response = await fetch('https://api.ipify.org?format=json', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-store',
+        signal: controller.signal
       });
-
-      if (data.success) {
-        if (onShowNotification) {
-          onShowNotification(`✓ Internet is active! Ping: ${data.latencyMs}ms`);
-        }
+      clearTimeout(timeoutId);
+      if (response.ok) {
+        await response.json();
+        latencyMs = Date.now() - startTime;
+        success = true;
       } else {
-        if (onShowNotification) {
-          onShowNotification(`❌ Open Internet check failed: ${data.error || 'Timeout'}`);
-        }
+        throw new Error(`HTTP ${response.status}`);
       }
     } catch (err: any) {
-      setInternetStatusResult({
-        success: false,
-        latencyMs: 0,
-        timestamp: new Date().toLocaleTimeString(),
-        error: err.message || 'Failed to make API request'
-      });
-      if (onShowNotification) {
-        onShowNotification(`❌ Internet verification request failed`);
+      // Try secondary client-side verification endpoint (Unpkg CDN)
+      const secStartTime = Date.now();
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const response = await fetch('https://unpkg.com/react/package.json', {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (response.ok) {
+          await response.json();
+          latencyMs = Date.now() - secStartTime;
+          success = true;
+          provider = "Unpkg/Cloudflare CDN";
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (err2: any) {
+        // Fallback to backend verification endpoint as last resort
+        const backendStartTime = Date.now();
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          const response = await fetch('/api/check-internet', {
+            cache: 'no-store',
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          const contentType = response.headers.get("content-type") || "";
+          if (response.ok && contentType.includes("application/json")) {
+            const data = await response.json();
+            success = data.success;
+            latencyMs = data.latencyMs || (Date.now() - backendStartTime);
+            status = data.status || response.status;
+            provider = data.provider || "Express Server Backend";
+            error = data.error;
+          } else {
+            throw new Error(contentType.includes("text/html") ? "API response intercepted by environment proxy" : `HTTP ${response.status}`);
+          }
+        } catch (err3: any) {
+          success = false;
+          latencyMs = 0;
+          error = err3.message || 'All connectivity verification endpoints failed';
+        }
       }
-    } finally {
-      setCheckingInternet(false);
     }
+
+    setInternetStatusResult({
+      success,
+      latencyMs,
+      status,
+      timestamp: new Date().toLocaleTimeString(),
+      provider,
+      error
+    });
+
+    if (success) {
+      if (onShowNotification) {
+        onShowNotification(`✓ Internet is active! Ping: ${latencyMs}ms (${provider})`);
+      }
+    } else {
+      if (onShowNotification) {
+        onShowNotification(`❌ Open Internet check failed: ${error || 'Timeout'}`);
+      }
+    }
+    setCheckingInternet(false);
   };
   
   const toggleSound = () => {
