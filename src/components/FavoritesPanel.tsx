@@ -4,9 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { Heart, Key, Copy, Check, Trash2, Shield, HeartOff, Users, Tag, Plus, X, Download, Upload, Search } from 'lucide-react';
+import { Heart, Key, Copy, Check, Trash2, Shield, HeartOff, Users, Tag, Plus, X, Download, Upload, Search, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { AccountRecord } from '../types';
 import { copyTextToClipboard } from '../utils/clipboard';
+import { getApiUrl } from '../utils/api';
 
 interface FavoritesPanelProps {
   favorites: AccountRecord[];
@@ -32,8 +33,68 @@ export default function FavoritesPanel({
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: 'id' | 'password' | null }>({});
   const [labelInputs, setLabelInputs] = useState<{ [id: string]: string }>({});
   const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [verificationResults, setVerificationResults] = useState<Record<string, { success: boolean; message: string }>>({});
   const isDark = theme === 'dark';
+
+  const handleVerify = async (id: string, passwordString?: string) => {
+    const pw = passwordString || `password_${id}`;
+    setVerifyingId(id);
+    setVerificationResults(prev => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+
+    try {
+      const response = await fetch(getApiUrl('/api/verify-account'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id, password: pw })
+      });
+      
+      const contentType = response.headers.get("content-type") || "";
+      if (!response.ok || contentType.includes("text/html")) {
+        if (contentType.includes("text/html")) {
+          throw new Error("Sandbox proxy cookie protection active. Please open the app in a new tab using the top-right button to verify.");
+        }
+        throw new Error(`HTTP Error ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setVerificationResults(prev => ({
+          ...prev,
+          [id]: { success: true, message: data.message || 'Login verified successfully!' }
+        }));
+        onShowNotification(`✓ Account ${id} verified: ACTIVE`);
+      } else {
+        setVerificationResults(prev => ({
+          ...prev,
+          [id]: { success: false, message: data.error || 'Incorrect ID or password' }
+        }));
+        onShowNotification(`❌ Account ${id} failed: ${data.error || 'Incorrect credentials'}`);
+      }
+    } catch (error: any) {
+      console.error('Verification failed', error);
+      const isProxyError = error.message && (error.message.includes("Sandbox proxy") || error.message.includes("Unexpected token '<'"));
+      const finalMsg = isProxyError 
+        ? "Please open the app in a new tab (using the button in top-right) to bypass iframe sandbox restrictions."
+        : (error.message || 'Verification failed');
+        
+      setVerificationResults(prev => ({
+        ...prev,
+        [id]: { success: false, message: finalMsg }
+      }));
+      onShowNotification(isProxyError ? `⚠️ Open in a new tab to bypass cookie protection` : `❌ Verification request failed`);
+    } finally {
+      setVerifyingId(null);
+    }
+  };
 
   const handleExportFavorites = () => {
     if (favorites.length === 0) {
@@ -334,56 +395,105 @@ export default function FavoritesPanel({
             )}
           </div>
 
-          {/* Label Selector Filter Chips */}
+          {/* Label Selector Filter Dropdown */}
           {allUniqueLabels.length > 0 && (
-            <div className={`border p-4 rounded-[20px] flex flex-col gap-3 ${
-              isDark ? "bg-[rgba(20,25,45,0.4)] border-white/[0.04]" : "bg-white border-slate-200 shadow-sm"
-            }`} id="favorites-label-filter-bar">
-              <div className="flex items-center justify-between" id="filter-bar-header">
-                <div className={`flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider ${isDark ? "text-[#A0AEC0]" : "text-slate-500"}`}>
+            <div className="relative" id="favorites-label-filter-dropdown-container">
+              <div className={`border p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                isDark ? "bg-[rgba(20,25,45,0.4)] border-white/[0.04]" : "bg-white border-slate-200 shadow-sm"
+              }`} id="favorites-label-filter-bar">
+                <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${isDark ? "text-[#A0AEC0]" : "text-slate-500"}`}>
                   <Tag className={`w-3.5 h-3.5 ${isDark ? "text-purple-400" : "text-purple-600"}`} />
-                  <span>Filter by Custom Label ({allUniqueLabels.length})</span>
+                  <span>Filter by Label</span>
                 </div>
-                {activeFilter && (
+                
+                <div className="relative flex-1 sm:max-w-xs" id="dropdown-select-wrapper">
                   <button
-                    id="clear-label-filter-badge-btn"
                     type="button"
-                    onClick={() => setSelectedLabelFilter(null)}
-                    className="text-[10px] text-purple-650 hover:text-purple-800 flex items-center gap-1 hover:underline cursor-pointer font-bold"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                      isDark
+                        ? "bg-[#0c0f20] border-white/10 text-white hover:border-purple-500/40"
+                        : "bg-white border-slate-205 text-slate-800 hover:border-purple-400"
+                    }`}
                   >
-                    Reset Filter <X className="w-3 h-3" />
+                    <span className="truncate">
+                      {activeFilter ? `Label: ${activeFilter} (${labelCounts[activeFilter] || 0})` : 'All Labels / No Filter'}
+                    </span>
+                    {isDropdownOpen ? (
+                      <ChevronUp className="w-4 h-4 ml-2 text-slate-400 shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 ml-2 text-slate-400 shrink-0" />
+                    )}
                   </button>
-                )}
-              </div>
-              
-              <div className="flex flex-wrap gap-2" id="label-filter-chips">
-                {/* Individual Labels list */}
-                {allUniqueLabels.map((lbl) => {
-                  const count = labelCounts[lbl] || 0;
-                  const isSelected = activeFilter === lbl;
-                  return (
-                    <button
-                      type="button"
-                      key={lbl}
-                      id={`filter-chip-${lbl}`}
-                      onClick={() => setSelectedLabelFilter(isSelected ? null : lbl)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
-                        isSelected
-                          ? "bg-purple-650 text-white border-purple-400 shadow-[0_4px_12px_rgba(168,85,247,0.22)]"
-                          : isDark
-                            ? "bg-white/[0.01] text-[#A0AEC0] border-white/[0.05] hover:bg-white/[0.04] hover:border-white/[0.1] hover:text-white"
-                            : "bg-slate-50 text-slate-650 border-slate-200 hover:bg-slate-100 hover:text-slate-900"
-                      }`}
-                    >
-                      <span>{lbl}</span>
-                      <span className={`text-[10.5px] font-black px-1.5 py-0.5 rounded-md ${
-                        isSelected ? "bg-purple-500 text-white" : isDark ? "bg-white/10 text-[#A0AEC0]" : "bg-slate-200/50 text-slate-600"
-                      }`}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
+
+                  {isDropdownOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setIsDropdownOpen(false)} 
+                      />
+                      <div 
+                        className={`absolute right-0 left-0 mt-1.5 max-h-60 overflow-y-auto rounded-xl border p-1 shadow-xl z-20 ${
+                          isDark 
+                            ? "bg-[#0c0f20] border-white/10 text-slate-200" 
+                            : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                        id="dropdown-options"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedLabelFilter(null);
+                            setIsDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-between cursor-pointer ${
+                            !activeFilter
+                              ? isDark ? "bg-purple-500/10 text-purple-300" : "bg-purple-50 text-purple-850"
+                              : isDark ? "hover:bg-white/5" : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <span>Show All Labels</span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            !activeFilter ? "bg-purple-500/20 text-purple-300" : "bg-slate-100 text-slate-600"
+                          }`}>
+                            {favorites.length}
+                          </span>
+                        </button>
+                        
+                        <div className={`my-1 border-t ${isDark ? "border-white/5" : "border-slate-100"}`} />
+
+                        {allUniqueLabels.map((lbl) => {
+                          const count = labelCounts[lbl] || 0;
+                          const isSelected = activeFilter === lbl;
+                          return (
+                            <button
+                              type="button"
+                              key={lbl}
+                              onClick={() => {
+                                setSelectedLabelFilter(isSelected ? null : lbl);
+                                setIsDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-between cursor-pointer ${
+                                isSelected
+                                  ? isDark ? "bg-purple-550/25 text-purple-300 font-bold" : "bg-purple-50 text-purple-800 font-bold"
+                                  : isDark ? "hover:bg-white/5" : "hover:bg-slate-50"
+                              }`}
+                            >
+                              <span>{lbl}</span>
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                isSelected 
+                                  ? isDark ? "bg-purple-500/30 text-purple-200" : "bg-purple-100 text-purple-700"
+                                  : isDark ? "bg-white/5 text-slate-400" : "bg-slate-100 text-slate-600"
+                              }`}>
+                                {count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -476,6 +586,75 @@ export default function FavoritesPanel({
                     ))}
                   </ul>
                 </div>
+              </div>
+
+              {/* Account Login Verification Button & Status */}
+              <div className={`mt-2 pt-3 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                isDark ? "border-white/[0.06]" : "border-slate-100"
+              }`} id={`favorite-verification-block-${record.id}`}>
+                <div className="flex flex-col gap-0.5">
+                  <span className={`text-[10px] font-extrabold uppercase tracking-widest ${isDark ? "text-[#A0AEC0]" : "text-slate-450"}`}>
+                    Uttoron Academy Login Check
+                  </span>
+                  <div className="flex flex-col gap-1 mt-0.5">
+                    <div className="flex items-center gap-1.5">
+                      {verificationResults[record.id] ? (
+                        verificationResults[record.id].success ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                            <Check className="w-3.5 h-3.5" /> Checked: Verified Right
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-md">
+                            <AlertCircle className="w-3.5 h-3.5 animate-pulse" /> Checked: Verified Wrong
+                          </span>
+                        )
+                      ) : (
+                        <span className={`text-xs ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                          Not checked yet
+                        </span>
+                      )}
+                    </div>
+                    {verificationResults[record.id] && !verificationResults[record.id].success && (
+                      <p className="text-[11px] font-medium text-rose-450 leading-tight max-w-xs mt-0.5">
+                        Reason: {verificationResults[record.id].message}
+                      </p>
+                    )}
+                    {verificationResults[record.id] && verificationResults[record.id].success && (
+                      <p className="text-[11px] font-medium text-emerald-450 leading-tight max-w-xs mt-0.5">
+                        {verificationResults[record.id].message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  id={`favorite-verify-login-btn-${record.id}`}
+                  type="button"
+                  disabled={verifyingId === record.id}
+                  onClick={() => handleVerify(record.id, record.password)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    verifyingId === record.id
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/20'
+                      : verificationResults[record.id]
+                        ? verificationResults[record.id].success
+                          ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400'
+                          : 'bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400'
+                        : isDark
+                          ? 'bg-[#8F5CFF] hover:bg-[#7B4AE2] text-white border-none shadow-[0_4px_14px_rgba(143,92,255,0.32)] active:scale-95'
+                          : 'bg-purple-650 hover:bg-purple-750 text-white border-none shadow-xs active:scale-95 font-bold'
+                  }`}
+                >
+                  {verifyingId === record.id ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : verificationResults[record.id] ? (
+                    <span>Verify Again</span>
+                  ) : (
+                    <span>Check Credentials</span>
+                  )}
+                </button>
               </div>
 
               {/* Dynamic Multiple Labels/Tags Section */}

@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { RefreshCw, Copy, Check, Users, ChevronRight, Trash2, Shield, Heart, HelpCircle, Plus, Loader2, AlertCircle, Tag, X } from 'lucide-react';
 import { AccountRecord } from '../types';
 import { copyTextToClipboard } from '../utils/clipboard';
+import { getApiUrl } from '../utils/api';
 
 interface ResultSectionProps {
   filteredRecords: AccountRecord[];
@@ -81,7 +82,7 @@ export default function ResultSection({
     });
 
     try {
-      const response = await fetch('/api/verify-account', {
+      const response = await fetch(getApiUrl('/api/verify-account'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

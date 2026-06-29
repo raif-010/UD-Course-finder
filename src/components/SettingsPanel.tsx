@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, VolumeX, CheckSquare, Square, RefreshCw, FileSpreadsheet, Info, Mail, Zap, Trash2, Wifi, WifiOff, Globe, Loader2, Activity, Server, Clock } from 'lucide-react';
 import { AppSettings } from '../types';
+import { getApiUrl } from '../utils/api';
 
 interface SettingsPanelProps {
   settings: AppSettings;
@@ -112,7 +113,7 @@ export default function SettingsPanel({
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 4000);
-          const response = await fetch('/api/check-internet', {
+          const response = await fetch(getApiUrl('/api/check-internet'), {
             cache: 'no-store',
             signal: controller.signal
           });

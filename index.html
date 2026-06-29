@@ -1,6 +1,41 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (function() {
+        try {
+          if (typeof window !== 'undefined') {
+            var originalFetch = window.fetch;
+            if (originalFetch) {
+              var currentFetch = originalFetch;
+              // Attempt to define configurable getter/setter on window
+              try {
+                Object.defineProperty(window, 'fetch', {
+                  get: function() { return currentFetch; },
+                  set: function(val) { currentFetch = val; },
+                  configurable: true,
+                  enumerable: true
+                });
+              } catch (e1) {
+                // Fallback: Attempt to define on Window.prototype if window is locked
+                try {
+                  Object.defineProperty(Window.prototype, 'fetch', {
+                    get: function() { return currentFetch; },
+                    set: function(val) { currentFetch = val; },
+                    configurable: true,
+                    enumerable: true
+                  });
+                } catch (e2) {
+                  console.warn("Failed to configure fetch getter/setter:", e2);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Early fetch safeguard error:", err);
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UD Course Finder — Search Accounts</title>
